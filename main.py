@@ -5,8 +5,8 @@ from machine import Pin, PWM, Timer
 import json
 
 # Wi-Fi credentials
-SSID = "garden"
-PASSWORD = "mfz511gp"
+SSID = "your wifi name"
+PASSWORD = "your wifi password"
 
 # Connect to Wi-Fi
 wlan = network.WLAN(network.STA_IF)
