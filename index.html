@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilateral Stimulation Control</title>
+    <style>
+        /* Existing CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        .master-control {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #eee;
+        }
+        #master-switch {
+            background-color: #2ecc40;
+            color: white;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 200px;
+        }
+        #master-switch.off {
+            background-color: #ff4136;
+        }
+        .session-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .animation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 1rem;
+        }
+        .motor-indicator {
+            width: 50px;
+            height: 50px;
+            margin: 0 1rem;
+            border-radius: 50%;
+            background-color: #ccc;
+            opacity: 0.5;
+            position: relative;
+        }
+        .motor-indicator.active {
+            opacity: 1;
+            background-color: #2ecc40;
+        }
+        .motor-label {
+            position: absolute;
+            top: 60px;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+        }
+        .bilateral-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .control-group {
+            background-color: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+        .control-label {
+            min-width: 120px;
+            font-weight: bold;
+        }
+        .slider-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+        }
+        .value-display {
+            min-width: 60px;
+            text-align: right;
+            font-family: monospace;
+        }
+        .bilateral-mode {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 2px solid #eee;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal-btn {
+            margin: 0.5rem;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .modal-btn.desensitization {
+            background-color: #2ecc40;
+            color: white;
+        }
+        .modal-btn.reprocessing {
+            background-color: #0074d9;
+            color: white;
+        }
+        #apply-button {
+            background-color: #0074d9;
+            color: white;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="master-control">
+            <button id="master-switch">START</button>
+        </div>
+
+        <div class="session-info" id="session-info" style="display: none;">
+            <div class="timer">Elapsed Time: <span id="elapsed-time">00:00</span></div>
+        </div>
+
+        <div class="animation" id="animation" style="display: none;">
+            <div class="motor-indicator" id="motor1-indicator">
+                <div class="motor-label">Left</div>
+            </div>
+            <div class="motor-indicator" id="motor2-indicator">
+                <div class="motor-label">Right</div>
+            </div>
+        </div>
+        
+        <div class="bilateral-controls">
+            <div class="control-group">
+                <h3>Left Motor</h3>
+                <div class="control-row">
+                    <span class="control-label">Intensity</span>
+                    <div class="slider-container">
+                        <input type="range" id="motor1-intensity" min="5" max="100" step="5" value="50">
+                        <span class="value-display" id="motor1-intensity-value">50%</span>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Frequency</span>
+                    <div class="slider-container">
+                        <input type="range" id="motor1-frequency" min="1" max="100" value="50">
+                        <span class="value-display" id="motor1-frequency-value">50 Hz</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Right Motor</h3>
+                <div class="control-row">
+                    <span class="control-label">Intensity</span>
+                    <div class="slider-container">
+                        <input type="range" id="motor2-intensity" min="5" max="100" step="5" value="50">
+                        <span class="value-display" id="motor2-intensity-value">50%</span>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Frequency</span>
+                    <div class="slider-container">
+                        <input type="range" id="motor2-frequency" min="1" max="100" value="50">
+                        <span class="value-display" id="motor2-frequency-value">50 Hz</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bilateral-mode">
+                <div class="control-row">
+                    <span class="control-label">Cycle Time</span>
+                    <div class="slider-container">
+                        <input type="range" id="cycle-time" min="100" max="3000" step="100" value="1000">
+                        <span class="value-display" id="cycle-time-value">1.0s</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-row" style="text-align: center;">
+                <button id="apply-button">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode Selection Modal -->
+    <div id="mode-modal" class="modal">
+        <div class="modal-content">
+            <h2>Select Mode</h2>
+            <button class="modal-btn desensitization" onclick="startMode('desensitize')">Desensitize</button>
+            <button class="modal-btn reprocessing" onclick="startMode('reprocess')">Reprocess</button>
+        </div>
+    </div>
+
+    <script>
+        let systemOn = false;
+        const masterSwitch = document.getElementById('master-switch');
+        const modeModal = document.getElementById('mode-modal');
+        const sessionInfo = document.getElementById('session-info');
+        const elapsedTimeDisplay = document.getElementById('elapsed-time');
+        const animation = document.getElementById('animation');
+        const motor1Indicator = document.getElementById('motor1-indicator');
+        const motor2Indicator = document.getElementById('motor2-indicator');
+        let sessionTimer, animationTimer, startTime;
+        
+        // Preset modes
+        const modePresets = {
+            desensitize: {
+                motor1: { intensity: 70, frequency: 80 },
+                motor2: { intensity: 70, frequency: 80 },
+                bilateral: { interval: 500 } // 0.5 seconds
+            },
+            reprocess: {
+                motor1: { intensity: 30, frequency: 70 },
+                motor2: { intensity: 30, frequency: 70 },
+                bilateral: { interval: 1500 } // 1.5 seconds
+            }
+        };
+
+        // Settings storage
+        let motorSettings = {
+            motor1: {
+                intensity: parseInt(document.getElementById('motor1-intensity').value),
+                frequency: parseInt(document.getElementById('motor1-frequency').value)
+            },
+            motor2: {
+                intensity: parseInt(document.getElementById('motor2-intensity').value),
+                frequency: parseInt(document.getElementById('motor2-frequency').value)
+            },
+            bilateral: {
+                interval: parseInt(document.getElementById('cycle-time').value)
+            }
+        };
+
+        // Update value displays
+        function updateValueDisplay(inputId, valueId, unit = '') {
+            const input = document.getElementById(inputId);
+            const display = document.getElementById(valueId);
+            const value = inputId === 'cycle-time' ? (input.value / 1000).toFixed(1) : input.value;
+            display.textContent = value + unit;
+            
+            input.addEventListener('input', () => {
+                const val = inputId === 'cycle-time' ? (input.value / 1000).toFixed(1) : input.value;
+                display.textContent = val + unit;
+                updateSettings(inputId, input.value);
+            });
+        }
+
+        function updateSettings(inputId, value) {
+            switch(inputId) {
+                case 'motor1-intensity':
+                    motorSettings.motor1.intensity = parseInt(value);
+                    break;
+                case 'motor1-frequency':
+                    motorSettings.motor1.frequency = parseInt(value);
+                    break;
+                case 'motor2-intensity':
+                    motorSettings.motor2.intensity = parseInt(value);
+                    break;
+                case 'motor2-frequency':
+                    motorSettings.motor2.frequency = parseInt(value);
+                    break;
+                case 'cycle-time':
+                    motorSettings.bilateral.interval = parseInt(value);
+                    break;
+            }
+        }
+        
+        updateValueDisplay('motor1-intensity', 'motor1-intensity-value', '%');
+        updateValueDisplay('motor1-frequency', 'motor1-frequency-value', ' Hz');
+        updateValueDisplay('motor2-intensity', 'motor2-intensity-value', '%');
+        updateValueDisplay('motor2-frequency', 'motor2-frequency-value', ' Hz');
+        updateValueDisplay('cycle-time', 'cycle-time-value', 's');
+        
+        // Master switch control
+        masterSwitch.addEventListener('click', function() {
+            if (!systemOn) {
+                modeModal.style.display = 'flex';
+            } else {
+                stopSystem();
+            }
+        });
+    
+        function startMode(mode) {
+            systemOn = true;
+            modeModal.style.display = 'none';
+            masterSwitch.textContent = 'STOP';
+            masterSwitch.classList.add('off');
+            
+            // Load presets for both motors
+            const preset = modePresets[mode];
+            if (preset) {
+                // Update motor settings
+                motorSettings.motor1.intensity = preset.motor1.intensity;
+                motorSettings.motor1.frequency = preset.motor1.frequency;
+                motorSettings.motor2.intensity = preset.motor2.intensity;
+                motorSettings.motor2.frequency = preset.motor2.frequency;
+                motorSettings.bilateral.interval = preset.bilateral.interval;
+                
+                // Update sliders
+                document.getElementById('motor1-intensity').value = preset.motor1.intensity;
+                document.getElementById('motor1-frequency').value = preset.motor1.frequency;
+                document.getElementById('motor2-intensity').value = preset.motor2.intensity;
+                document.getElementById('motor2-frequency').value = preset.motor2.frequency;
+                document.getElementById('cycle-time').value = preset.bilateral.interval;
+                
+                // Update value displays
+                document.getElementById('motor1-intensity-value').textContent = preset.motor1.intensity + '%';
+                document.getElementById('motor1-frequency-value').textContent = preset.motor1.frequency + ' Hz';
+                document.getElementById('motor2-intensity-value').textContent = preset.motor2.intensity + '%';
+                document.getElementById('motor2-frequency-value').textContent = preset.motor2.frequency + ' Hz';
+                document.getElementById('cycle-time-value').textContent = (preset.bilateral.interval / 1000).toFixed(1) + 's';
+            }
+            
+            // Apply settings
+            updateMotorSettings();
+
+            // Start session timer
+            startTime = new Date();
+            sessionInfo.style.display = 'flex';
+            animation.style.display = 'flex';
+            startSessionTimer();
+            startAnimation();
+        }
+
+        function stopSystem() {
+            systemOn = false;
+            masterSwitch.textContent = 'START';
+            masterSwitch.classList.remove('off');
+            
+            // Turn off both motors
+            ['MOTOR1', 'MOTOR2'].forEach(motorId => {
+                fetch(`/motor/${motorId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({intensity: 0})
+                });
+            });
+
+            // Stop timers and reset displays
+            clearInterval(sessionTimer);
+            clearInterval(animationTimer);
+            elapsedTimeDisplay.textContent = '00:00';
+            sessionInfo.style.display = 'none';
+            animation.style.display = 'none';
+            motor1Indicator.classList.remove('active');
+            motor2Indicator.classList.remove('active');
+        }
+        
+        // Apply settings when the "Apply" button is clicked
+        document.getElementById('apply-button').addEventListener('click', function() {
+            if (systemOn) {
+                updateMotorSettings();
+                // Restart animation with new cycle time
+                clearInterval(animationTimer);
+                startAnimation();
+            }
+        });
+        
+        // Update motor settings
+        function updateMotorSettings() {
+            ['MOTOR1', 'MOTOR2'].forEach(motorId => {
+                const motorKey = motorId.toLowerCase();
+                const intensity = motorSettings[motorKey].intensity;
+                const frequency = motorSettings[motorKey].frequency;
+                
+                fetch(`/motor/${motorId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        intensity: parseInt(intensity),
+                        frequency: parseInt(frequency)
+                    })
+                });
+            });
+            
+            // Update bilateral settings
+            fetch('/advanced', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    alternate_interval: motorSettings.bilateral.interval
+                })
+            });
+        }
+
+        // Session Timer
+        function startSessionTimer() {
+            sessionTimer = setInterval(() => {
+                const now = new Date();
+                const elapsed = new Date(now - startTime);
+                const minutes = String(elapsed.getUTCMinutes()).padStart(2, '0');
+                const seconds = String(elapsed.getUTCSeconds()).padStart(2, '0');
+                elapsedTimeDisplay.textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        // Animation Control
+        function startAnimation() {
+            let activeMotor = 1;
+            const cycleTime = motorSettings.bilateral.interval;
+            updateAnimation(activeMotor);
+            animationTimer = setInterval(() => {
+                activeMotor = activeMotor === 1 ? 2 : 1;
+                updateAnimation(activeMotor);
+            }, cycleTime);
+        }
+
+        function updateAnimation(activeMotor) {
+            if (activeMotor === 1) {
+                motor1Indicator.classList.add('active');
+                motor2Indicator.classList.remove('active');
+            } else {
+                motor1Indicator.classList.remove('active');
+                motor2Indicator.classList.add('active');
+            }
+        }
+    
+        // Close modal if clicked outside
+        window.onclick = function(event) {
+            if (event.target === modeModal) {
+                modeModal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+
